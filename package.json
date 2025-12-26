@@ -1,0 +1,33 @@
+{
+  "name": "hubspot-sales-ideas-backend",
+  "version": "1.0.0",
+  "description": "Backend para análisis de contactos de Hubspot y generación de ideas de venta",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "analyze-now": "node src/scripts/analyzeNow.js",
+    "analyze-one": "node src/scripts/analyzeOne.js",
+    "list-contacts": "node src/scripts/listContacts.js",
+    "view-contact": "node src/scripts/viewContactInfo.js",
+    "view-tasks": "node src/scripts/viewContactTasks.js",
+    "test-list": "node src/scripts/testList.js",
+    "test-guide": "node src/scripts/testGuide.js",
+    "test": "node src/services/testAnalysis.js"
+  },
+  "keywords": ["hubspot", "sales", "automation"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "node-cron": "^3.0.3",
+    "openai": "^4.24.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+
