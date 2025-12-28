@@ -9,14 +9,12 @@
 require('dotenv').config();
 const hubspotService = require('../services/hubspotService');
 const analysisService = require('../services/analysisService');
-const clickupService = require('../services/clickupService');
 
 const analyzeAllNow = async () => {
   console.log('\n🚀 Iniciando análisis inmediato de todos los contactos...\n');
   console.log(`📋 Segmento: ${process.env.HUBSPOT_LIST_ID || '13121'}`);
   console.log(`🤖 OpenAI: ${process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' ? '✅ Configurado' : '❌ No configurado'}`);
-  console.log(`🔗 Hubspot: ${process.env.HUBSPOT_API_KEY && process.env.HUBSPOT_API_KEY !== 'your_hubspot_api_key_here' ? '✅ Configurado' : '❌ No configurado'}`);
-  console.log(`📝 ClickUp: ${clickupService.isConfigured() ? '✅ Configurado' : '❌ No configurado'}\n`);
+  console.log(`🔗 Hubspot: ${process.env.HUBSPOT_API_KEY && process.env.HUBSPOT_API_KEY !== 'your_hubspot_api_key_here' ? '✅ Configurado' : '❌ No configurado'}\n`);
 
   if (!process.env.HUBSPOT_API_KEY || process.env.HUBSPOT_API_KEY === 'your_hubspot_api_key_here') {
     console.error('❌ Error: HUBSPOT_API_KEY no está configurado');
@@ -60,30 +58,23 @@ const analyzeAllNow = async () => {
         // Generar análisis e ideas
         const analysis = await analysisService.generateSalesIdeas(contactData);
         
-        // Crear task en Hubspot
+        // Crear task en Hubspot (con todas las ideas consolidadas)
         const task = await hubspotService.createTask(contact.id, analysis);
         
         console.log(`   ✅ Tarea Hubspot creada: ${task.id}`);
-        console.log(`   💡 Ver: https://app.hubspot.com/contacts/tasks/${task.id}`);
-        
-        // Crear tareas en ClickUp (una por cada idea)
-        let clickupTasks = [];
-        if (clickupService.isConfigured() && analysis.ideas && analysis.ideas.length > 0) {
-          console.log(`   📝 Creando ${analysis.ideas.length} tarea(s) en ClickUp...`);
-          const contactInfo = {
-            contactName: analysis.contactName,
-            contactEmail: analysis.contactEmail,
-            company: analysis.company
-          };
-          clickupTasks = await clickupService.createTasksForIdeas(analysis.ideas, contactInfo);
+        if (analysis.ownerId) {
+          console.log(`   👤 Asignada a: ${analysis.ownerId}`);
         }
+        console.log(`   💡 Ideas incluidas: ${analysis.ideas.length}`);
+        console.log(`   💡 Ver: https://app.hubspot.com/contacts/tasks/${task.id}`);
         
         results.push({
           contactId: contact.id,
           email: contact.properties?.email || analysis.contactEmail || 'N/A',
           success: true,
           taskId: task.id,
-          clickupTasks: clickupTasks.length,
+          assignedTo: analysis.ownerId || 'Unassigned',
+          ideasCount: analysis.ideas.length,
           generatedWithAI: analysis.generatedWithAI
         });
         
@@ -124,6 +115,8 @@ const analyzeAllNow = async () => {
         console.log(`   ${index + 1}. ${status} ${aiStatus} ${result.email || result.contactId}`);
         if (result.success && result.taskId) {
           console.log(`      Task ID: ${result.taskId}`);
+          console.log(`      Asignada a: ${result.assignedTo}`);
+          console.log(`      Ideas: ${result.ideasCount}`);
           console.log(`      Link: https://app.hubspot.com/contacts/tasks/${result.taskId}`);
         }
         if (!result.success && result.error) {

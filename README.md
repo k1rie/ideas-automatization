@@ -8,7 +8,8 @@ Sistema automatizado que analiza contactos de Hubspot y genera ideas de comunica
 - **Análisis con IA**: Usa ChatGPT para generar ideas contextuales e inteligentes
 - **Análisis automático**: Revisa contactos diariamente a las 4 AM (lunes a viernes)
 - **Generación de ideas**: Crea 3 ideas de comunicación personalizadas por contacto
-- **Integración Hubspot**: Crea tasks automáticamente con el análisis
+- **Integración Hubspot**: Crea tasks automáticamente con el análisis y las asigna al owner del contacto
+- **Una tarea por contacto**: Todas las ideas se consolidan en una sola tarea de HubSpot
 - **API REST**: Endpoints para análisis manual y testing
 
 ## Instalación
@@ -71,7 +72,8 @@ backend/
 │   ├── services/        
 │   │   ├── hubspotService.js    # Integración Hubspot
 │   │   ├── openaiService.js     # Integración ChatGPT
-│   │   └── analysisService.js   # Lógica de análisis
+│   │   ├── analysisService.js   # Lógica de análisis
+│   │   └── clickupService.js    # (No usado - solo HubSpot)
 │   ├── scheduler/       # Automatización con cron
 │   ├── routes/          # Definición de rutas
 │   └── server.js        # Punto de entrada
@@ -127,6 +129,39 @@ Cada idea incluye:
 - **Reason**: Por qué esta idea es relevante
 - **Action**: Qué hacer exactamente
 - **Priority**: Alta, Media, Baja
+
+## Formato de Tareas en HubSpot
+
+Las tareas creadas en HubSpot incluyen:
+
+### Estructura de la Tarea
+- **Asunto**: "Ideas de Venta - [Nombre del Contacto]"
+- **Asignación**: Automáticamente asignada al `hubspot_owner_id` del contacto
+- **Prioridad**: Alta (si hay ideas de alta prioridad) o Media
+- **Estado**: NOT_STARTED
+
+### Contenido de la Tarea
+La tarea incluye todas las ideas consolidadas en un formato legible:
+
+1. **Resumen del Contacto**
+   - Información básica (nombre, email, teléfono)
+   - Empresa y etapa del ciclo de vida
+   - Negocios activos
+   - Días sin contacto
+
+2. **Ideas de Venta**
+   - Todas las ideas generadas (hasta 3)
+   - Tipo de comunicación sugerida
+   - Razón y acción detallada
+   - Prioridad de cada idea
+
+3. **Negocios Asociados**
+   - Lista de deals activos
+   - Etapa y monto de cada negocio
+
+4. **Últimas Comunicaciones**
+   - Historial de las últimas 5 interacciones
+   - Tipo, fecha y dirección de cada comunicación
 
 ## Fallback sin ChatGPT
 

@@ -153,6 +153,9 @@ const generateSalesIdeas = async (contactData) => {
   // Determinar si hay ideas de alta prioridad
   const highPriority = ideas.some(idea => idea.priority === 'Alta') || daysSinceLastComm > 14;
 
+  // Obtener el owner_id del contacto
+  const ownerId = props.hubspot_owner_id || null;
+
   return {
     contactId: contact.id,
     contactName,
@@ -174,6 +177,7 @@ const generateSalesIdeas = async (contactData) => {
     ideas: ideas.slice(0, 3), // Asegurar máximo 3 ideas
     generatedWithAI,
     highPriority,
+    ownerId,
     generatedAt: new Date().toISOString()
   };
 };

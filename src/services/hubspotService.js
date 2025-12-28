@@ -309,7 +309,7 @@ const getContactDetails = async (contactId) => {
           'lifecyclestage', 'hs_lead_status', 'createdate', 'lastmodifieddate',
           'notes_last_contacted', 'notes_last_updated', 'num_notes',
           'hs_email_last_send_date', 'hs_email_last_open_date',
-          'hs_sequences_actively_enrolled_count'
+          'hs_sequences_actively_enrolled_count', 'hubspot_owner_id'
         ].join(',')
       }
     });
@@ -654,9 +654,12 @@ const createTask = async (contactId, analysis) => {
   try {
     const taskBody = formatTaskBody(analysis);
     
+    // Obtener el owner_id del contacto para asignar la tarea
+    const ownerId = analysis.ownerId || null;
+    
     const taskData = {
       properties: {
-        hs_task_subject: `💡 Ideas de Venta - ${analysis.contactName}`,
+        hs_task_subject: `Ideas de Venta - ${analysis.contactName}`,
         hs_task_body: taskBody,
         hs_task_status: 'NOT_STARTED',
         hs_task_priority: analysis.highPriority ? 'HIGH' : 'MEDIUM',
@@ -664,6 +667,11 @@ const createTask = async (contactId, analysis) => {
         hs_task_type: 'TODO'
       }
     };
+    
+    // Asignar la tarea al owner del contacto si existe
+    if (ownerId) {
+      taskData.properties.hubspot_owner_id = ownerId;
+    }
     
     // Crear la tarea
     const taskResponse = await hubspotClient.post('/crm/v3/objects/tasks', taskData);
@@ -675,6 +683,9 @@ const createTask = async (contactId, analysis) => {
     );
     
     console.log(`✅ Task created for contact ${contactId}: ${taskId}`);
+    if (ownerId) {
+      console.log(`   Assigned to owner: ${ownerId}`);
+    }
     
     return taskResponse.data;
   } catch (error) {
@@ -687,36 +698,61 @@ const createTask = async (contactId, analysis) => {
  * Formatear el cuerpo de la tarea con el análisis
  */
 const formatTaskBody = (analysis) => {
-  let body = `📊 RESUMEN DEL CONTACTO\n\n`;
-  body += `👤 Nombre: ${analysis.contactName}\n`;
-  body += `📧 Email: ${analysis.contactEmail}\n`;
-  body += `🏢 Empresa: ${analysis.company || 'No especificada'}\n`;
-  body += `📍 Etapa: ${analysis.lifecycleStage}\n`;
-  body += `💼 Negocios: ${analysis.dealsCount}\n`;
-  body += `📅 Última actividad: ${analysis.lastActivity}\n`;
-  body += `⏰ Días sin contacto: ${analysis.daysSinceLastContact}\n\n`;
+  let body = `RESUMEN DEL CONTACTO\n`;
+  body += `${'='.repeat(50)}\n\n`;
+  body += `Nombre: ${analysis.contactName}\n`;
+  body += `Email: ${analysis.contactEmail}\n`;
+  if (analysis.contactPhone) {
+    body += `Teléfono: ${analysis.contactPhone}\n`;
+  }
+  body += `Empresa: ${analysis.company || 'No especificada'}\n`;
+  body += `Etapa del ciclo: ${analysis.lifecycleStage}\n`;
+  body += `Negocios activos: ${analysis.activeDeals || 0} de ${analysis.dealsCount || 0}\n`;
+  body += `Última actividad: ${analysis.lastActivity}\n`;
+  body += `Días sin contacto: ${analysis.daysSinceLastContact}\n\n`;
   
-  body += `💡 IDEAS DE COMUNICACIÓN GENERADAS POR IA\n\n`;
+  body += `IDEAS DE VENTA\n`;
+  body += `${'='.repeat(50)}\n\n`;
   
   analysis.ideas.forEach((idea, index) => {
-    const priorityEmoji = idea.priority === 'Alta' ? '🔴' : idea.priority === 'Media' ? '🟡' : '🟢';
-    body += `${index + 1}. ${idea.title} ${priorityEmoji}\n`;
-    body += `   📱 Tipo: ${idea.type}\n`;
-    body += `   💭 Razón: ${idea.reason}\n`;
-    body += `   ✅ Acción: ${idea.action}\n`;
-    body += `   ⚡ Prioridad: ${idea.priority}\n\n`;
+    body += `IDEA ${index + 1}: ${idea.title}\n`;
+    body += `${'-'.repeat(50)}\n`;
+    body += `Tipo de comunicación: ${idea.type}\n`;
+    body += `Prioridad: ${idea.priority}\n\n`;
+    body += `Razón:\n${idea.reason}\n\n`;
+    body += `Acción sugerida:\n${idea.action}\n\n`;
+    if (idea.suggestedTiming) {
+      body += `Momento sugerido: ${idea.suggestedTiming}\n\n`;
+    }
   });
 
+  if (analysis.deals && analysis.deals.length > 0) {
+    body += `NEGOCIOS ASOCIADOS\n`;
+    body += `${'='.repeat(50)}\n\n`;
+    analysis.deals.forEach((deal, index) => {
+      body += `${index + 1}. ${deal.name}\n`;
+      body += `   Etapa: ${deal.stage}\n`;
+      body += `   Monto: ${deal.currency} ${deal.amount.toLocaleString()}\n`;
+      if (deal.closeDate) {
+        body += `   Fecha de cierre: ${deal.closeDate}\n`;
+      }
+      body += `\n`;
+    });
+  }
+
   if (analysis.communications && analysis.communications.length > 0) {
-    body += `\n📞 ÚLTIMAS COMUNICACIONES:\n`;
-    analysis.communications.slice(0, 3).forEach(comm => {
-      body += `- ${comm.type}: ${comm.subject} (hace ${comm.daysAgo} días)\n`;
+    body += `ÚLTIMAS COMUNICACIONES\n`;
+    body += `${'='.repeat(50)}\n\n`;
+    analysis.communications.slice(0, 5).forEach((comm, index) => {
+      body += `${index + 1}. ${comm.type} - ${comm.subject}\n`;
+      body += `   Hace ${comm.daysAgo} días (${comm.date})\n`;
+      body += `   Dirección: ${comm.direction === 'inbound' ? 'Entrante' : 'Saliente'}\n\n`;
     });
   }
   
-  body += `\n---\n`;
-  body += `🤖 Generado automáticamente con IA el ${new Date().toLocaleString('es-ES')}\n`;
-  body += `📋 Segmento: ${SEGMENT_ID}`;
+  body += `${'='.repeat(50)}\n`;
+  body += `Generado automáticamente el ${new Date().toLocaleString('es-ES')}\n`;
+  body += `Método: ${analysis.generatedWithAI ? 'Inteligencia Artificial' : 'Reglas automáticas'}`;
   
   return body;
 };

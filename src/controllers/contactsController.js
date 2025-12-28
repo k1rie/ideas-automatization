@@ -1,6 +1,5 @@
 const hubspotService = require('../services/hubspotService');
 const analysisService = require('../services/analysisService');
-const clickupService = require('../services/clickupService');
 
 /**
  * Obtener todos los contactos de Hubspot
@@ -58,19 +57,8 @@ const analyzeContact = async (req, res) => {
     // Generar análisis e ideas (con ChatGPT)
     const analysis = await analysisService.generateSalesIdeas(contactData);
     
-    // Crear task en Hubspot
+    // Crear task en Hubspot con todas las ideas
     const task = await hubspotService.createTask(contactId, analysis);
-    
-    // Crear tareas en ClickUp (una por cada idea)
-    let clickupTasks = [];
-    if (clickupService.isConfigured() && analysis.ideas && analysis.ideas.length > 0) {
-      const contactInfo = {
-        contactName: analysis.contactName,
-        contactEmail: analysis.contactEmail,
-        company: analysis.company
-      };
-      clickupTasks = await clickupService.createTasksForIdeas(analysis.ideas, contactInfo);
-    }
     
     res.json({
       success: true,
@@ -78,8 +66,7 @@ const analyzeContact = async (req, res) => {
         contact: contactData.contact,
         company: contactData.company,
         analysis,
-        task,
-        clickupTasks
+        task
       }
     });
   } catch (error) {
@@ -107,24 +94,13 @@ const analyzeAllContacts = async (req, res) => {
         const analysis = await analysisService.generateSalesIdeas(contactData);
         const task = await hubspotService.createTask(contact.id, analysis);
         
-        // Crear tareas en ClickUp (una por cada idea)
-        let clickupTasks = [];
-        if (clickupService.isConfigured() && analysis.ideas && analysis.ideas.length > 0) {
-          const contactInfo = {
-            contactName: analysis.contactName,
-            contactEmail: analysis.contactEmail,
-            company: analysis.company
-          };
-          clickupTasks = await clickupService.createTasksForIdeas(analysis.ideas, contactInfo);
-        }
-        
         results.push({
           contactId: contact.id,
           email: contact.properties?.email || analysis.contactEmail || 'N/A',
           success: true,
           taskId: task.id,
-          clickupTasks: clickupTasks.length,
-          generatedWithAI: analysis.generatedWithAI
+          generatedWithAI: analysis.generatedWithAI,
+          assignedTo: analysis.ownerId || 'Unassigned'
         });
         
         // Pausa para no saturar APIs (Hubspot y OpenAI)

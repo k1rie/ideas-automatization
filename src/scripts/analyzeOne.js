@@ -9,7 +9,6 @@
 require('dotenv').config();
 const hubspotService = require('../services/hubspotService');
 const analysisService = require('../services/analysisService');
-const clickupService = require('../services/clickupService');
 
 const analyzeOne = async (contactId) => {
   if (!contactId) {
@@ -20,8 +19,7 @@ const analyzeOne = async (contactId) => {
 
   console.log('\n🚀 Analizando contacto:', contactId);
   console.log(`🤖 OpenAI: ${process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' ? '✅ Configurado' : '❌ No configurado'}`);
-  console.log(`🔗 Hubspot: ${process.env.HUBSPOT_API_KEY && process.env.HUBSPOT_API_KEY !== 'your_hubspot_api_key_here' ? '✅ Configurado' : '❌ No configurado'}`);
-  console.log(`📝 ClickUp: ${clickupService.isConfigured() ? '✅ Configurado' : '❌ No configurado'}\n`);
+  console.log(`🔗 Hubspot: ${process.env.HUBSPOT_API_KEY && process.env.HUBSPOT_API_KEY !== 'your_hubspot_api_key_here' ? '✅ Configurado' : '❌ No configurado'}\n`);
 
   if (!process.env.HUBSPOT_API_KEY || process.env.HUBSPOT_API_KEY === 'your_hubspot_api_key_here') {
     console.error('❌ Error: HUBSPOT_API_KEY no está configurado');
@@ -44,23 +42,14 @@ const analyzeOne = async (contactId) => {
     
     console.log('\n📝 Creando tarea en Hubspot...\n');
     
-    // Crear task en Hubspot
+    // Crear task en Hubspot (con todas las ideas consolidadas)
     const task = await hubspotService.createTask(contactId, analysis);
     
     console.log(`   ✅ Tarea Hubspot creada: ${task.id}`);
-    console.log(`   💡 Ver: https://app.hubspot.com/contacts/tasks/${task.id}`);
-    
-    // Crear tareas en ClickUp (una por cada idea)
-    let clickupTasks = [];
-    if (clickupService.isConfigured() && analysis.ideas && analysis.ideas.length > 0) {
-      console.log(`\n📝 Creando ${analysis.ideas.length} tarea(s) en ClickUp...\n`);
-      const contactInfo = {
-        contactName: analysis.contactName,
-        contactEmail: analysis.contactEmail,
-        company: analysis.company
-      };
-      clickupTasks = await clickupService.createTasksForIdeas(analysis.ideas, contactInfo);
+    if (analysis.ownerId) {
+      console.log(`   👤 Asignada a: ${analysis.ownerId}`);
     }
+    console.log(`   💡 Ver: https://app.hubspot.com/contacts/tasks/${task.id}`);
 
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2);
@@ -111,24 +100,14 @@ const analyzeOne = async (contactId) => {
 
     console.log(`✅ Tarea creada en Hubspot`);
     console.log(`   Task ID: ${task.id}`);
-    if (clickupTasks.length > 0) {
-      console.log(`✅ ${clickupTasks.length} tarea(s) creada(s) en ClickUp`);
-      clickupTasks.forEach((t, idx) => {
-        console.log(`   ${idx + 1}. ${t.name}`);
-        if (t.url) console.log(`      🔗 ${t.url}`);
-      });
+    if (analysis.ownerId) {
+      console.log(`   Asignada a owner: ${analysis.ownerId}`);
     }
+    console.log(`   Ideas incluidas: ${analysis.ideas.length}`);
     console.log(`   Tiempo total: ${duration}s\n`);
 
     console.log('💡 Ver tarea en Hubspot:');
     console.log(`   https://app.hubspot.com/contacts/tasks/${task.id}\n`);
-    if (clickupTasks.length > 0) {
-      console.log('💡 Ver tareas en ClickUp:');
-      clickupTasks.forEach(t => {
-        if (t.url) console.log(`   ${t.url}`);
-      });
-      console.log('');
-    }
 
   } catch (error) {
     console.error('\n❌ Error analizando contacto:');
